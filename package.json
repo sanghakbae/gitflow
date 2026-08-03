@@ -1,0 +1,27 @@
+{
+  "name": "gitflow-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "\uc5ec\ub7ec \uc800\uc7a5\uc18c\uc758 git-flow \ub77c\uc774\ud504\uc0ac\uc774\ud074\uc744 \ud55c \uacf3\uc5d0\uc11c \uad00\ub9ac\ud558\ub294 \ub85c\uceec \ub300\uc2dc\ubcf4\ub4dc",
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "node --watch server/index.js",
+    "dev:web": "vite",
+    "build": "vite build && cp dist/index.html dist/404.html",
+    "start": "node server/index.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "firebase": "^12.17.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "vite": "^6.0.7"
+  }
+}
