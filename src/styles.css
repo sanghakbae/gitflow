@@ -204,11 +204,28 @@ tbody tr:hover { background: #141a24; }
   /* 표는 가로 스크롤 대신 카드처럼 쌓아 좁은 화면에서도 다 읽히게 한다 */
   table, tbody, tr, td { display: block; width: 100%; }
   thead { display: none; }
-  tr { padding: 10px 2px; border-bottom: 1px solid #1e242f; }
-  tr:last-child { border-bottom: none; }
-  td { border: none; padding: 3px 0; width: auto !important; }
+  tr {
+    padding: 12px; margin-bottom: 10px; border: 1px solid var(--border);
+    border-radius: 9px; background: #12171f;
+  }
+  tr:last-child { margin-bottom: 0; }
+  tbody tr:hover { background: #12171f; }
+  td { border: none; padding: 2px 0; width: auto !important; }
   td:empty { display: none; }
-  td .row { justify-content: flex-start !important; }
+
+  /* 라벨이 붙은 값은 "라벨 값" 한 줄로 흐르게 한다 */
+  td[data-label]::before {
+    content: attr(data-label);
+    display: inline-block; min-width: 62px;
+    color: var(--muted); font-size: 11px;
+  }
+
+  /* 행 안의 버튼은 아래에 모아 손가락이 닿는 크기로 */
+  td .row { justify-content: flex-start !important; margin-top: 8px; }
+  td .row button.sm { padding: 7px 14px; font-size: 13px; }
+
+  /* 2열로 놓인 폼은 한 열로 편다 */
+  .card > .row > .grow { flex-basis: 100%; }
 
   /* 모달·입력은 화면 폭에 맞춘다 */
   .overlay { padding: 4vh 10px; }

@@ -84,10 +84,10 @@ export default function BranchesTab({ data, reload, showToast }) {
                     {b.sha} {b.subject?.slice(0, 60)}
                   </div>
                 </td>
-                <td className="mono-sm">
+                <td className="mono-sm" data-label="동기화">
                   {!b.upstream ? '로컬' : `${b.ahead ? `↑${b.ahead}` : ''}${b.behind ? ` ↓${b.behind}` : ''}` || '동기'}
                 </td>
-                <td className="mono-sm">{relTime(b.date)}</td>
+                <td className="mono-sm" data-label="마지막">{relTime(b.date)}</td>
                 <td>
                   <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
                     {api.caps.checkout && !b.current && (
