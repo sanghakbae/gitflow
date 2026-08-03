@@ -3,11 +3,13 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { useBackend } from '../backends/index.jsx'
 import { Badge, useToast } from '../components/ui.jsx'
 import BranchesTab from './tabs/BranchesTab.jsx'
+import GuideTab from './tabs/GuideTab.jsx'
 import GraphTab from './tabs/GraphTab.jsx'
 import PullRequestsTab from './tabs/PullRequestsTab.jsx'
 import RulesTab from './tabs/RulesTab.jsx'
 
 const TABS = [
+  ['guide', '가이드'],
   ['branches', '브랜치'],
   ['graph', '그래프'],
   ['prs', 'Pull Request'],
@@ -122,9 +124,8 @@ export default function RepoDetail({ onChanged }) {
         ))}
       </div>
 
-      {tab === 'branches' && (
-        <BranchesTab data={data} reload={reload} showToast={showToast} />
-      )}
+      {tab === 'guide' && <GuideTab data={data} onGoBranches={() => setParams({ tab: 'branches' })} />}
+      {tab === 'branches' && <BranchesTab data={data} reload={reload} showToast={showToast} />}
       {tab === 'graph' && <GraphTab repoId={id} branches={branches} />}
       {tab === 'prs' && <PullRequestsTab repoId={id} data={data} showToast={showToast} />}
       {tab === 'rules' && <RulesTab repoId={id} />}
