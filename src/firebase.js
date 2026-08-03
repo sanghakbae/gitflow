@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import {
   GithubAuthProvider,
-  GoogleAuthProvider,
   getAuth,
   linkWithPopup,
   onAuthStateChanged,
@@ -51,34 +50,6 @@ const keepToken = (result) => {
 export async function signInWithGithub() {
   const result = await signInWithPopup(auth, githubProvider())
   return { user: result.user, token: keepToken(result) }
-}
-
-/** 신원 확인만 한다. GitHub 토큰은 연결 단계에서 따로 받는다. */
-export async function signInWithGoogle() {
-  const result = await signInWithPopup(auth, new GoogleAuthProvider())
-  return { user: result.user }
-}
-
-/**
- * 개인 액세스 토큰(PAT)을 직접 등록한다.
- * Firebase 의 GitHub 공급자를 설정하지 않아도 이 경로로 저장소를 다룰 수 있다.
- * 유효성을 GitHub 에 물어보고, 통과한 것만 세션에 보관한다.
- */
-export async function useManualToken(token) {
-  const trimmed = (token || '').trim()
-  if (!trimmed) throw new Error('토큰을 입력하세요')
-
-  const res = await fetch('https://api.github.com/user', {
-    headers: { Authorization: `Bearer ${trimmed}`, Accept: 'application/vnd.github+json' },
-  })
-  if (res.status === 401) throw new Error('GitHub 이 거부한 토큰입니다. 값과 만료일을 확인하세요.')
-  if (!res.ok) throw new Error(`GitHub 확인 실패 (${res.status})`)
-
-  const login = (await res.json()).login
-  // 저장소 조작에 필요한 권한이 있는지 헤더로 확인 (fine-grained 토큰은 이 헤더가 비어 있다)
-  const scopes = res.headers.get('x-oauth-scopes')
-  sessionStorage.setItem(TOKEN_KEY, trimmed)
-  return { login, scopes }
 }
 
 /**

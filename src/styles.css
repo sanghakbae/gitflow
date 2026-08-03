@@ -56,8 +56,6 @@ a:hover { text-decoration: underline; }
 
 .signin { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; width: 100%; }
 .signin .card p { line-height: 1.7; }
-.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 16px 0 12px; }
-.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* ── 본문 ────────────────────────────────── */
 /* 레이아웃 클래스는 .badge.main 등과 겹치지 않도록 content 로 둔다 */
