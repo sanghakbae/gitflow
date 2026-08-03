@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useBackend } from '../../backends/index.jsx'
 import { Badge, ExecLog, Modal, relTime } from '../../components/ui.jsx'
 
@@ -41,7 +42,7 @@ export default function BranchesTab({ data, reload, showToast }) {
           <div className="row">
             <span className="muted">
               {repo.flow.develop} 브랜치가 없어 {repo.flow.main} 하나로만 작업 중입니다. 무엇이 달라지는지는{' '}
-              <a href="?tab=guide">가이드</a>에 정리해 두었습니다.
+              <Link to="?tab=guide">가이드</Link>에 정리해 두었습니다.
             </span>
             <button className="primary" onClick={() => setDialog({ action: 'init' })}>
               git-flow 초기화

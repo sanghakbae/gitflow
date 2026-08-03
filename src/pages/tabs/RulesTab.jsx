@@ -8,6 +8,7 @@ const RULE_LABEL = {
   'direct-commit': '보호 브랜치 직접 커밋',
   'stale-branch': '방치된 브랜치',
   'gone-upstream': '원격 삭제됨',
+  protected: 'GitHub 브랜치 보호',
 }
 
 const SEV_ORDER = { error: 0, warn: 1, info: 2 }
