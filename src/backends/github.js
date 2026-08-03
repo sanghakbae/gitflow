@@ -18,6 +18,24 @@ import { layoutLanes } from '../lib/laneLayout.js'
 import { loadRegistry, saveRepoDoc, removeRepoDoc, loadDefaults, saveDefaults } from './registry.js'
 
 const DAY = 24 * 60 * 60 * 1000
+
+/**
+ * 규칙마다 "왜 문제인지"를 붙인다. 위반 목록만 보여주면 사람은 규칙을 지키는
+ * 대신 규칙을 끄기 때문에, 근거가 화면에 함께 나와야 한다.
+ * (server/lib/rules.js 의 RULE_REASONS 와 같은 내용을 유지한다)
+ */
+const RULE_REASONS = {
+  'branch-name':
+    '이름만으로 무슨 작업인지, 어디로 병합될지 알 수 없습니다. 이 도구를 포함한 자동화가 접두사로 브랜치 종류를 판별하므로, 규칙을 벗어난 브랜치는 feature/release/hotfix 어디에도 잡히지 않고 집계에서 빠집니다.',
+  'commit-message':
+    '릴리즈 노트 자동 생성과 변경 유형(기능/버그/문서) 분류가 커밋 접두사에 의존합니다. 규칙을 벗어난 커밋은 노트에서 누락되거나 엉뚱한 항목으로 분류되고, 나중에 "언제 무엇이 바뀌었나"를 되짚기 어려워집니다.',
+  'stale-branch':
+    '오래 방치될수록 기준 브랜치와 멀어져 병합 시 충돌이 커집니다. 이미 다른 경로로 반영됐는데 지우지 않은 브랜치일 수도 있어, 남아 있으면 어떤 작업이 살아 있는지 판단이 흐려집니다.',
+  protected:
+    'GitHub 브랜치 보호가 걸려 있으면 이 도구의 직접 병합·삭제가 거부될 수 있습니다. 그 브랜치로는 PR 을 거쳐야 합니다.',
+}
+
+const withReason = (v) => ({ ...v, why: RULE_REASONS[v.rule] || '' })
 const truncate = (s, n = 60) => (s && s.length > n ? `${s.slice(0, n)}…` : s || '')
 
 function classify(name, flow) {
@@ -268,6 +286,7 @@ export const githubBackend = {
     if (dryRun) return { title: 'git-flow 초기화', steps: [], preview: steps }
     const base = await gh.get(`/repos/${repo.owner}/${repo.repo}/git/ref/heads/${repo.flow.main}`)
     await createRef(repo.owner, repo.repo, `heads/${repo.flow.develop}`, base.object.sha)
+    invalidate(repo.owner, repo.repo)
     return { title: 'git-flow 초기화', ok: true, log: [{ cmd: steps[0], ok: true, stdout: '생성됨' }] }
   },
 
@@ -300,7 +319,10 @@ export const githubBackend = {
       if (dryRun) return { title: `${type} 완료 → ${branch}`, steps: [], preview, tag }
 
       const log = []
-      invalidate(o, r)
+      const done = (result) => {
+        invalidate(o, r) // 실패로 중단하더라도 일부는 반영됐을 수 있다
+        return result
+      }
       for (const t of targets) {
         try {
           const res = await mergeBranch(o, r, t, branch, `Merge branch '${branch}' into ${t}`)
@@ -312,7 +334,7 @@ export const githubBackend = {
             ok: false,
             stderr: conflict ? `충돌이 발생했습니다. GitHub 에서 PR 로 해결하세요: ${e.message}` : e.message,
           })
-          return { title: `${type} 완료 → ${branch}`, ok: false, log }
+          return done({ title: `${type} 완료 → ${branch}`, ok: false, log })
         }
       }
 
@@ -322,7 +344,7 @@ export const githubBackend = {
           log.push({ cmd: `릴리즈 ${tag} 생성`, ok: true, stdout: '생성됨' })
         } catch (e) {
           log.push({ cmd: `릴리즈 ${tag} 생성`, ok: false, stderr: e.message })
-          return { title: `${type} 완료 → ${branch}`, ok: false, log }
+          return done({ title: `${type} 완료 → ${branch}`, ok: false, log })
         }
       }
 
@@ -334,7 +356,7 @@ export const githubBackend = {
           log.push({ cmd: `refs/heads/${branch} 삭제`, ok: false, stderr: e.message })
         }
       }
-      return { title: `${type} 완료 → ${branch}`, ok: true, log, tag }
+      return done({ title: `${type} 완료 → ${branch}`, ok: true, log, tag })
     }
 
     throw new Error(`GitHub 모드에서 지원하지 않는 동작입니다: ${action}`)
@@ -346,11 +368,13 @@ export const githubBackend = {
     const r = repo.repo
     let raw = []
 
+    // 브랜치 목록은 커밋 조회와 라벨 표시 양쪽에 쓰이므로 한 번만 가져온다
+    const list = await ghBranches(o, r)
+
     if (branch) {
       raw = await ghCommits(o, r, { sha: branch, per_page: String(Math.min(limit, 100)) })
     } else {
       // 전체 브랜치를 한 번에 주는 API 가 없어, 주요 브랜치를 모아 합친다.
-      const list = await ghBranches(o, r)
       // gitflow 브랜치를 우선 담고, 자리가 남으면 나머지 브랜치로 채운다.
       // (전부 'other' 인 저장소에서 그래프가 비어 보이지 않도록)
       const isFlow = (b) => classify(b.name, repo.flow).type !== 'other'
@@ -370,7 +394,7 @@ export const githubBackend = {
     }
 
     // 브랜치 팁·태그를 라벨로 붙인다
-    const [list, tagList] = await Promise.all([ghBranches(o, r), ghTags(o, r).catch(() => [])])
+    const tagList = await ghTags(o, r).catch(() => [])
     const labels = new Map()
     const addLabel = (sha, text) => {
       if (!labels.has(sha)) labels.set(sha, [])
@@ -390,7 +414,10 @@ export const githubBackend = {
       isMerge: c.parents.length > 1,
     }))
 
-    return { ...layoutLanes(commits), truncated: commits.length >= limit }
+    // GitHub 은 한 번에 100개까지만 준다. 요청한 개수보다 적게 왔어도
+    // 상한에 걸린 것이면 잘렸다고 알려야 한다.
+    const perPageCapped = branch && limit > 100 && commits.length >= 100
+    return { ...layoutLanes(commits), truncated: perPageCapped || commits.length >= limit }
   },
 
   async rules(id) {
@@ -408,31 +435,37 @@ export const githubBackend = {
       list.map(async (b) => {
         const isProtected = protectedSet.has(b.name) || b.protected
         if (!isProtected && nameRe && !nameRe.test(b.name)) {
-          out.push({ severity: 'error', rule: 'branch-name', branch: b.name, message: '브랜치 이름이 컨벤션에 맞지 않습니다', hint: `패턴: ${rules.branchName}` })
+          out.push(withReason({ severity: 'error', rule: 'branch-name', branch: b.name, message: '브랜치 이름이 컨벤션에 맞지 않습니다', hint: `패턴: ${rules.branchName}` }))
         }
         if (!isProtected && rules.staleDays > 0 && b.date) {
           const age = Math.floor((now - new Date(b.date).getTime()) / DAY)
           if (age > rules.staleDays) {
-            out.push({ severity: 'warn', rule: 'stale-branch', branch: b.name, message: `${age}일 동안 커밋이 없습니다`, hint: `기준: ${rules.staleDays}일` })
+            out.push(withReason({ severity: 'warn', rule: 'stale-branch', branch: b.name, message: `${age}일 동안 커밋이 없습니다`, hint: `기준: ${rules.staleDays}일` }))
           }
         }
         if (b.protected) {
-          out.push({ severity: 'info', rule: 'protected', branch: b.name, message: 'GitHub 브랜치 보호가 설정되어 있습니다', hint: '' })
+          out.push(withReason({ severity: 'info', rule: 'protected', branch: b.name, message: 'GitHub 브랜치 보호가 설정되어 있습니다', hint: '' }))
         }
-        if (msgRe && !isProtected) {
+        // 커밋 메시지 컨벤션은 gitflow 브랜치에만 적용한다.
+        // 모든 브랜치에 compare 를 날리면 요청 수가 브랜치 수만큼 늘고,
+        // dependabot/* 같은 자동 생성 브랜치가 경고를 도배한다.
+        const isFlowBranch = ['feature', 'release', 'hotfix', 'support'].includes(classify(b.name, flow).type)
+        if (msgRe && !isProtected && isFlowBranch) {
           try {
             const cmp = await compare(repo.owner, repo.repo, flow.develop, b.name)
             for (const c of (cmp.commits || []).slice(-(rules.maxCommitsChecked || 30))) {
               if (c.parents.length > 1) continue
               const subject = (c.commit.message || '').split('\n')[0]
               if (!msgRe.test(subject)) {
-                out.push({
-                  severity: 'warn',
-                  rule: 'commit-message',
-                  branch: b.name,
-                  message: `${c.sha.slice(0, 7)} "${truncate(subject)}" (${c.commit.author?.name})`,
-                  hint: `패턴: ${rules.commitMessage}`,
-                })
+                out.push(
+                  withReason({
+                    severity: 'warn',
+                    rule: 'commit-message',
+                    branch: b.name,
+                    message: `${c.sha.slice(0, 7)} "${truncate(subject)}" (${c.commit.author?.name})`,
+                    hint: `패턴: ${rules.commitMessage}`,
+                  }),
+                )
               }
             }
           } catch {
