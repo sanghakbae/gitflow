@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { useBackend } from './backends/index.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import RepoDetail from './pages/RepoDetail.jsx'
@@ -11,10 +11,7 @@ export default function App() {
   const [error, setError] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
   const navigate = useNavigate()
-  const location = useLocation()
-
-  // 화면을 이동하면 모바일 서랍을 닫는다
-  useEffect(() => setNavOpen(false), [location.pathname, location.search])
+  const closeNav = () => setNavOpen(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -24,9 +21,13 @@ export default function App() {
     } catch (e) {
       setError(e.message)
     }
+    // api 는 백엔드가 정해지면 고정된다 (BackendProvider 가 memo 로 유지)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
+    // refresh 는 await 이후에 setState 하므로 동기 setState 가 아니다
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh()
     const t = setInterval(refresh, 20000)
     return () => clearInterval(t)
@@ -34,9 +35,9 @@ export default function App() {
 
   return (
     <div className="app">
-      {navOpen && <div className="nav-scrim" onClick={() => setNavOpen(false)} />}
+      {navOpen && <div className="nav-scrim" onClick={closeNav} />}
 
-      <aside className={`sidebar ${navOpen ? 'open' : ''}`} onClick={() => setNavOpen(false)}>
+      <aside className={`sidebar ${navOpen ? 'open' : ''}`} onClick={closeNav}>
         <div className="logo">
           Git<span>Flow</span> Manager
         </div>
@@ -89,7 +90,7 @@ export default function App() {
 
       {/* 모바일 하단 탭바 — 엄지가 닿는 위치에 둔다 */}
       <nav className="bottomnav">
-        <NavLink to="/" end className={({ isActive }) => `bn-item ${isActive && !navOpen ? 'active' : ''}`}>
+        <NavLink to="/" end onClick={closeNav} className={({ isActive }) => `bn-item ${isActive && !navOpen ? 'active' : ''}`}>
           <span className="bn-icon">◧</span>
           대시보드
         </NavLink>
@@ -97,7 +98,7 @@ export default function App() {
           <span className="bn-icon">⎇</span>
           저장소{repos.length ? ` ${repos.length}` : ''}
         </button>
-        <NavLink to="/settings" className={({ isActive }) => `bn-item ${isActive && !navOpen ? 'active' : ''}`}>
+        <NavLink to="/settings" onClick={closeNav} className={({ isActive }) => `bn-item ${isActive && !navOpen ? 'active' : ''}`}>
           <span className="bn-icon">⚙</span>
           설정
         </NavLink>

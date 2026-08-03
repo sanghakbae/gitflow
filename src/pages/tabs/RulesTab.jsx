@@ -1,29 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useBackend } from '../../backends/index.jsx'
 import { Badge } from '../../components/ui.jsx'
+import { ruleLabel } from '../../lib/ruleCatalog.js'
+import { useAsyncData } from '../../lib/useAsyncData.js'
 
-const RULE_LABEL = {
-  'branch-name': '브랜치 네이밍',
-  'commit-message': '커밋 메시지 컨벤션',
-  'direct-commit': '보호 브랜치 직접 커밋',
-  'stale-branch': '방치된 브랜치',
-  'gone-upstream': '원격 삭제됨',
-  protected: 'GitHub 브랜치 보호',
-}
 
 const SEV_ORDER = { error: 0, warn: 1, info: 2 }
 const SEV_LABEL = { error: '위반', warn: '경고', info: '참고' }
 
 export default function RulesTab({ repoId }) {
   const api = useBackend()
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
   const [filter, setFilter] = useState('all')
-
-  useEffect(() => {
-    setData(null)
-    api.rules(repoId).then(setData).catch((e) => setError(e.message))
-  }, [repoId])
+  const { data, error } = useAsyncData(() => api.rules(repoId), [repoId])
 
   if (error) return <div className="card empty err-text">{error}</div>
   if (!data) return <div className="empty">규칙 검사 중…</div>
@@ -60,7 +48,7 @@ export default function RulesTab({ repoId }) {
         ruleKeys.map((rule) => (
           <div className="card" key={rule} style={{ marginBottom: 14 }}>
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-              <h2 style={{ margin: 0 }}>{RULE_LABEL[rule] || rule}</h2>
+              <h2 style={{ margin: 0 }}>{ruleLabel(rule)}</h2>
               <Badge kind={groups[rule][0].severity === 'error' ? 'err' : groups[rule][0].severity}>
                 {SEV_LABEL[groups[rule][0].severity]} {groups[rule].length}
               </Badge>
