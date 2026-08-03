@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { githubBackend } from './github.js'
 import { localAvailable, localBackend } from './local.js'
+import { invalidateRegistry } from './registry.js'
 import {
   connectGithub,
   getStoredToken,
@@ -13,6 +14,12 @@ import {
 const BackendContext = createContext(null)
 export const useBackend = () => useContext(BackendContext)
 
+/** 계정을 바꾸면 앞 사용자의 등록부가 남아 있으면 안 된다. */
+const signOutAndReset = async () => {
+  invalidateRegistry()
+  await signOutGithub()
+}
+
 /**
  * 백엔드 결정 규칙
  * - 로컬 API 서버가 응답하면 로컬 모드 (실제 git 조작)
@@ -22,7 +29,7 @@ export function BackendProvider({ children }) {
   const [state, setState] = useState({ status: 'probing' })
   // 컨텍스트 값이 매 렌더마다 새 객체가 되지 않도록 고정한다
   const value = useMemo(
-    () => (state.backend ? { ...state.backend, user: state.user, signOut: signOutGithub } : null),
+    () => (state.backend ? { ...state.backend, user: state.user, signOut: signOutAndReset } : null),
     [state.backend, state.user],
   )
 
@@ -164,7 +171,7 @@ function ConnectGithub({ user, onConnected }) {
         >
           {busy ? '연결 중…' : 'GitHub 다시 연결'}
         </button>
-        <button onClick={signOutGithub} disabled={!!busy} style={{ width: '100%', padding: '8px', marginTop: 8 }}>
+        <button onClick={signOutAndReset} disabled={!!busy} style={{ width: '100%', padding: '8px', marginTop: 8 }}>
           로그아웃
         </button>
         {error && <div className="err-text" style={{ marginTop: 12, fontSize: 12.5 }}>{error}</div>}

@@ -64,6 +64,8 @@ export default function RulesTab({ repoId }) {
                 {SEV_LABEL[groups[rule][0].severity]} {groups[rule].length}
               </Badge>
             </div>
+            {/* 무엇이 걸렸는지만 보여주면 규칙을 고치는 대신 규칙을 끄게 된다 */}
+            {groups[rule][0].why && <p className="why">{groups[rule][0].why}</p>}
             <table>
               <tbody>
                 {groups[rule].map((v, i) => (
