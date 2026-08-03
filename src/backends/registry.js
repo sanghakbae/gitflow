@@ -46,9 +46,18 @@ export async function saveDefaults(defaults) {
   return defaults
 }
 
+/** Firestore 는 undefined 값을 거부하므로 저장 전에 걷어낸다. */
+function stripUndefined(obj) {
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, v && typeof v === 'object' && !Array.isArray(v) ? stripUndefined(v) : v]),
+  )
+}
+
 export async function saveRepoDoc(entry) {
   const { id, ...rest } = entry
-  await setDoc(doc(reposCol(), id), rest, { merge: true })
+  await setDoc(doc(reposCol(), id), stripUndefined(rest), { merge: true })
   return entry
 }
 

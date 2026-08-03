@@ -41,8 +41,36 @@ async function resolve(id) {
   }
 }
 
+/**
+ * 브랜치마다 커밋을 한 번씩 조회하므로 요청 수가 브랜치 수만큼 늘어난다.
+ * 대시보드·상세·규칙검사가 같은 데이터를 연달아 요청하므로 짧게 캐시해
+ * GitHub API 사용량을 아낀다.
+ */
+const CACHE_TTL = 20_000
+const cache = new Map()
+
+async function cached(key, fn) {
+  const hit = cache.get(key)
+  if (hit && Date.now() - hit.at < CACHE_TTL) return hit.value
+  const value = await fn()
+  cache.set(key, { at: Date.now(), value })
+  return value
+}
+
+/** 쓰기 작업 뒤에는 그 저장소의 캐시를 버려야 화면이 최신 상태를 보여준다. */
+function invalidate(owner, name) {
+  for (const key of cache.keys()) {
+    if (key.startsWith(`${owner}/${name}:`)) cache.delete(key)
+  }
+}
+
+const meta_ = (o, r) => cached(`${o}/${r}:meta`, () => repoMeta(o, r))
+
 /** 브랜치 목록 + 각 브랜치 최신 커밋 메타 (날짜·작성자·메시지) */
-async function branchesWithCommits(repo) {
+const branchesWithCommits = (repo) =>
+  cached(`${repo.owner}/${repo.repo}:branches`, () => fetchBranchesWithCommits(repo))
+
+async function fetchBranchesWithCommits(repo) {
   const { owner, repo: name } = repo
   const list = await ghBranches(owner, name)
   const detailed = await Promise.all(
@@ -95,9 +123,14 @@ export const githubBackend = {
     return this.config()
   },
   async addRepo({ owner, repo, name, id }) {
-    const meta = await repoMeta(owner, repo)
+    const [meta, { repos }] = await Promise.all([repoMeta(owner, repo), loadRegistry()])
+    if (repos.some((r) => r.owner === owner && r.repo === repo)) throw new Error('이미 등록된 저장소입니다')
+
+    let entryId = id || `${owner}-${repo}`.toLowerCase().replace(/[^a-z0-9-]/g, '-') || 'repo'
+    while (repos.some((r) => r.id === entryId)) entryId = `${entryId}-2`
+
     const entry = {
-      id: id || `${owner}-${repo}`.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+      id: entryId,
       name: name || meta.name,
       owner,
       repo,
@@ -140,7 +173,7 @@ export const githubBackend = {
       repos.map(async (r) => {
         const flow = { ...defaults.flow, ...(r.flow || {}), prefixes: { ...defaults.flow.prefixes, ...(r.flow?.prefixes || {}) } }
         try {
-          const [meta, list] = await Promise.all([repoMeta(r.owner, r.repo), branchesWithCommits({ ...r })])
+          const [meta, list] = await Promise.all([meta_(r.owner, r.repo), branchesWithCommits({ ...r })])
           return {
             id: r.id,
             name: r.name,
@@ -167,7 +200,7 @@ export const githubBackend = {
   async repo(id) {
     const repo = await resolve(id)
     const [meta, list, tagList] = await Promise.all([
-      repoMeta(repo.owner, repo.repo),
+      meta_(repo.owner, repo.repo),
       branchesWithCommits(repo),
       ghTags(repo.owner, repo.repo),
     ])
@@ -209,8 +242,12 @@ export const githubBackend = {
     }
   },
 
-  // 원격 기준이라 fetch/checkout/abort 는 의미가 없다
-  fetch: async () => ({ ok: true, log: [] }),
+  // 원격 기준이라 받아올 것은 없지만, 새로고침 의도이므로 캐시는 비운다
+  async fetch(id) {
+    const repo = await resolve(id)
+    invalidate(repo.owner, repo.repo)
+    return { ok: true, log: [] }
+  },
   checkout: async () => {
     throw new Error('GitHub 모드에서는 체크아웃할 수 없습니다')
   },
@@ -221,6 +258,7 @@ export const githubBackend = {
   async deleteBranch(id, branch) {
     const repo = await resolve(id)
     await deleteRef(repo.owner, repo.repo, `heads/${branch}`)
+    invalidate(repo.owner, repo.repo)
     return { ok: true, log: [{ cmd: `DELETE refs/heads/${branch}`, ok: true, stdout: '삭제됨' }] }
   },
 
@@ -248,6 +286,7 @@ export const githubBackend = {
       if (dryRun) return { title: `${type} 시작 → ${branch}`, steps: [], preview }
       const ref = await gh.get(`/repos/${o}/${r}/git/ref/heads/${base}`)
       await createRef(o, r, `heads/${branch}`, ref.object.sha)
+      invalidate(o, r)
       return { title: `${type} 시작 → ${branch}`, ok: true, log: [{ cmd: preview[0], ok: true, stdout: '생성됨' }] }
     }
 
@@ -261,6 +300,7 @@ export const githubBackend = {
       if (dryRun) return { title: `${type} 완료 → ${branch}`, steps: [], preview, tag }
 
       const log = []
+      invalidate(o, r)
       for (const t of targets) {
         try {
           const res = await mergeBranch(o, r, t, branch, `Merge branch '${branch}' into ${t}`)
@@ -311,12 +351,10 @@ export const githubBackend = {
     } else {
       // 전체 브랜치를 한 번에 주는 API 가 없어, 주요 브랜치를 모아 합친다.
       const list = await ghBranches(o, r)
-      const picked = list
-        .filter((b) => {
-          const t = classify(b.name, repo.flow).type
-          return t !== 'other'
-        })
-        .slice(0, 8)
+      // gitflow 브랜치를 우선 담고, 자리가 남으면 나머지 브랜치로 채운다.
+      // (전부 'other' 인 저장소에서 그래프가 비어 보이지 않도록)
+      const isFlow = (b) => classify(b.name, repo.flow).type !== 'other'
+      const picked = [...list.filter(isFlow), ...list.filter((b) => !isFlow(b))].slice(0, 8)
       const per = Math.max(20, Math.floor(limit / Math.max(1, picked.length)))
       const chunks = await Promise.all(
         picked.map((b) => ghCommits(o, r, { sha: b.name, per_page: String(Math.min(per, 100)) }).catch(() => [])),
@@ -411,7 +449,7 @@ export const githubBackend = {
 
   async github(id, state = 'open') {
     const repo = await resolve(id)
-    const [meta, prs] = await Promise.all([repoMeta(repo.owner, repo.repo), pulls(repo.owner, repo.repo, state === 'merged' ? 'closed' : state)])
+    const [meta, prs] = await Promise.all([meta_(repo.owner, repo.repo), pulls(repo.owner, repo.repo, state === 'merged' ? 'closed' : state)])
     const mapped = prs
       .filter((p) => (state === 'merged' ? p.merged_at : true))
       .map((p) => ({

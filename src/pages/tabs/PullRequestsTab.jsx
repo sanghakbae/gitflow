@@ -81,9 +81,12 @@ export default function PullRequestsTab({ repoId, data, showToast }) {
                       {pr.labels?.map((l) => (
                         <Badge key={l.name}>{l.name}</Badge>
                       ))}
-                      <span className="mono-sm">
-                        +{pr.additions} −{pr.deletions}
-                      </span>
+                      {/* GitHub 의 PR 목록 API 는 증감 라인을 주지 않는다 (gh CLI 경로에서만 채워짐) */}
+                      {(pr.additions > 0 || pr.deletions > 0) && (
+                        <span className="mono-sm">
+                          +{pr.additions} −{pr.deletions}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="mono-sm">

@@ -1,10 +1,12 @@
 import { initializeApp } from 'firebase/app'
 import {
   GithubAuthProvider,
+  browserLocalPersistence,
   getAuth,
   linkWithPopup,
   onAuthStateChanged,
   reauthenticateWithPopup,
+  setPersistence,
   signInWithPopup,
   signOut,
 } from 'firebase/auth'
@@ -27,6 +29,13 @@ const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null
 export const auth = app ? getAuth(app) : null
 export const db = app ? getFirestore(app) : null
 
+// Firebase Auth 는 기본적으로 인증 상태를 IndexedDB 에 두는데, 그 계층은 탭이
+// 백그라운드로 내려가면 "Database is closing/hidden" 을 던지며 로그인을 중단시킨다.
+// localStorage 기반 저장소로 고정해 그 경로를 아예 쓰지 않는다.
+const persistenceReady = auth
+  ? setPersistence(auth, browserLocalPersistence).catch(() => {})
+  : Promise.resolve()
+
 // GitHub OAuth 액세스 토큰은 로그인 순간에만 내려온다. 새로고침 후에도 쓰려면
 // 세션 스토리지에 보관한다(탭을 닫으면 사라짐). 만료되면 다시 로그인하면 된다.
 const TOKEN_KEY = 'gitflow.gh_token'
@@ -48,6 +57,7 @@ const keepToken = (result) => {
 }
 
 export async function signInWithGithub() {
+  await persistenceReady
   const result = await signInWithPopup(auth, githubProvider())
   return { user: result.user, token: keepToken(result) }
 }
@@ -57,6 +67,7 @@ export async function signInWithGithub() {
  * 이미 연결되어 있으면 재인증으로 토큰만 새로 받아온다.
  */
 export async function connectGithub() {
+  await persistenceReady
   const user = auth.currentUser
   if (!user) throw new Error('먼저 로그인하세요')
   const linked = user.providerData.some((p) => p.providerId === 'github.com')
