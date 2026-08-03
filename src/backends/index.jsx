@@ -1,7 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { githubBackend } from './github.js'
 import { localAvailable, localBackend } from './local.js'
-import { getStoredToken, isFirebaseConfigured, signInWithGithub, signOutGithub, watchAuth } from '../firebase.js'
+import {
+  connectGithub,
+  getStoredToken,
+  isFirebaseConfigured,
+  signInWithGithub,
+  signInWithGoogle,
+  signOutGithub,
+  watchAuth,
+} from '../firebase.js'
 
 const BackendContext = createContext(null)
 export const useBackend = () => useContext(BackendContext)
@@ -32,8 +40,10 @@ export function BackendProvider({ children }) {
       }
       watchAuth((user) => {
         if (cancelled) return
-        if (user && getStoredToken()) setState({ status: 'ready', backend: githubBackend, user })
-        else setState({ status: 'signed-out', user })
+        // 로그인은 했지만 GitHub 토큰이 없으면(= Google 로 들어왔거나 세션 만료) 연결 단계로 보낸다
+        if (!user) setState({ status: 'signed-out' })
+        else if (!getStoredToken()) setState({ status: 'needs-github', user })
+        else setState({ status: 'ready', backend: githubBackend, user })
       })
     })()
     return () => {
@@ -58,29 +68,37 @@ export function BackendProvider({ children }) {
     )
   }
 
-  if (state.status === 'signed-out') {
-    return <SignIn onSignedIn={(user) => setState({ status: 'ready', backend: githubBackend, user })} />
+  if (state.status === 'signed-out') return <SignIn />
+
+  if (state.status === 'needs-github') {
+    return <ConnectGithub user={state.user} onConnected={() => setState({ status: 'ready', backend: githubBackend, user: state.user })} />
   }
 
   return <BackendContext.Provider value={value}>{children}</BackendContext.Provider>
 }
 
-function SignIn({ onSignedIn }) {
-  const [busy, setBusy] = useState(false)
+/** 로그인 팝업을 띄우고 결과/에러를 다루는 공통 로직 */
+function useSignInAction() {
+  const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
 
-  async function go() {
-    setBusy(true)
+  const run = async (key, fn) => {
+    setBusy(key)
     setError(null)
     try {
-      const { user } = await signInWithGithub()
-      onSignedIn(user)
+      await fn()
+      // 성공 시 onAuthStateChanged 가 다음 단계를 결정한다
     } catch (e) {
-      setError(e.message)
+      setError(friendly(e))
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
+  return { busy, error, run }
+}
+
+function SignIn() {
+  const { busy, error, run } = useSignInAction()
 
   return (
     <div className="signin">
@@ -89,16 +107,79 @@ function SignIn({ onSignedIn }) {
           Git<span>Flow</span> Manager
         </div>
         <p className="muted" style={{ marginTop: 0 }}>
-          GitHub 계정으로 로그인하면 원격 저장소의 브랜치 라이프사이클을 관리할 수 있습니다.
+          로그인하면 원격 저장소의 브랜치 라이프사이클을 관리할 수 있습니다.
         </p>
-        <button className="primary" onClick={go} disabled={busy} style={{ width: '100%', padding: '10px' }}>
-          {busy ? '로그인 중…' : 'GitHub 로 로그인'}
+        <button
+          className="primary"
+          onClick={() => run('github', signInWithGithub)}
+          disabled={!!busy}
+          style={{ width: '100%', padding: '10px' }}
+        >
+          {busy === 'github' ? '로그인 중…' : 'GitHub 로 로그인'}
+        </button>
+        <button
+          onClick={() => run('google', signInWithGoogle)}
+          disabled={!!busy}
+          style={{ width: '100%', padding: '10px', marginTop: 8 }}
+        >
+          {busy === 'google' ? '로그인 중…' : 'Google 로 로그인'}
         </button>
         {error && <div className="err-text" style={{ marginTop: 12, fontSize: 12.5 }}>{error}</div>}
-        <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>
-          브랜치·태그 조작을 위해 <code>repo</code> 권한을 요청합니다. 토큰은 브라우저 세션에만 보관됩니다.
+        <p className="muted" style={{ fontSize: 12, marginBottom: 0, marginTop: 14 }}>
+          저장소 조작에는 GitHub 권한이 필요합니다. Google 로 들어오면 다음 단계에서 GitHub 을 연결합니다.
+          토큰은 브라우저 세션에만 보관됩니다.
         </p>
       </div>
     </div>
   )
+}
+
+function ConnectGithub({ user, onConnected }) {
+  const { busy, error, run } = useSignInAction()
+
+  return (
+    <div className="signin">
+      <div className="card" style={{ maxWidth: 440, textAlign: 'center' }}>
+        <div className="logo" style={{ fontSize: 20, padding: '0 0 6px' }}>
+          Git<span>Flow</span> Manager
+        </div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          <strong>{user.displayName || user.email}</strong> 으로 로그인했습니다.
+          <br />
+          저장소를 읽고 브랜치를 조작하려면 GitHub 연결이 필요합니다.
+        </p>
+        <button
+          className="primary"
+          onClick={() => run('connect', () => connectGithub().then(onConnected))}
+          disabled={!!busy}
+          style={{ width: '100%', padding: '10px' }}
+        >
+          {busy ? '연결 중…' : 'GitHub 연결하기'}
+        </button>
+        <button onClick={signOutGithub} disabled={!!busy} style={{ width: '100%', padding: '8px', marginTop: 8 }}>
+          다른 계정으로 로그인
+        </button>
+        {error && <div className="err-text" style={{ marginTop: 12, fontSize: 12.5 }}>{error}</div>}
+        <p className="muted" style={{ fontSize: 12, marginBottom: 0, marginTop: 14 }}>
+          <code>repo</code> 권한을 요청합니다. 액세스 토큰은 Firestore 에 저장하지 않고 브라우저 세션에만 둡니다.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Firebase 인증 오류를 원인이 드러나는 한국어 문장으로 바꾼다. */
+function friendly(e) {
+  const code = e?.code || ''
+  if (code === 'auth/unauthorized-domain')
+    return `이 도메인(${location.hostname})이 Firebase 승인된 도메인 목록에 없습니다. Firebase 콘솔 → Authentication → Settings → 승인된 도메인에 추가하세요.`
+  if (code === 'auth/operation-not-allowed')
+    return 'Firebase 콘솔에서 해당 로그인 공급자가 아직 활성화되지 않았습니다.'
+  if (code === 'auth/popup-blocked') return '브라우저가 팝업을 차단했습니다. 팝업을 허용한 뒤 다시 시도하세요.'
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return '로그인 창이 닫혔습니다.'
+  if (code === 'auth/account-exists-with-different-credential')
+    return '같은 이메일로 다른 방식의 계정이 이미 있습니다. 먼저 그 방식으로 로그인한 뒤 GitHub 을 연결하세요.'
+  if (code === 'auth/credential-already-in-use')
+    return '이 GitHub 계정은 이미 다른 사용자에 연결되어 있습니다. GitHub 로그인으로 직접 들어오세요.'
+  return e?.message || String(e)
 }

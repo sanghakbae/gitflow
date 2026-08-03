@@ -1,4 +1,4 @@
-import { getStoredToken } from '../firebase.js'
+import { clearStoredToken, getStoredToken } from '../firebase.js'
 
 const BASE = 'https://api.github.com'
 
@@ -28,12 +28,12 @@ async function call(pathname, { method = 'GET', body, accept } = {}) {
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
   if (!res.ok) {
-    const msg = data?.message || res.statusText
-    throw new GithubError(
-      res.status === 401 ? 'GitHub 토큰이 만료되었습니다. 다시 로그인하세요.' : msg,
-      res.status,
-      data,
-    )
+    if (res.status === 401) {
+      // 만료된 토큰은 버려서 새로고침하면 GitHub 연결 화면으로 돌아가게 한다
+      clearStoredToken()
+      throw new GithubError('GitHub 토큰이 만료되었습니다. 새로고침 후 다시 연결하세요.', 401, data)
+    }
+    throw new GithubError(data?.message || res.statusText, res.status, data)
   }
   return data
 }
