@@ -24,6 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npm run test
       - run: npm run build
         env:
           # 저장소 Variables 에 등록 (Settings → Secrets and variables → Actions → Variables)

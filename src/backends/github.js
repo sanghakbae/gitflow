@@ -15,27 +15,12 @@ import {
   tags as ghTags,
 } from './githubClient.js'
 import { layoutLanes } from '../lib/laneLayout.js'
+import { makeViolation } from '../lib/ruleCatalog.js'
 import { loadRegistry, saveRepoDoc, removeRepoDoc, saveDefaults } from './registry.js'
 
 const DAY = 24 * 60 * 60 * 1000
 
-/**
- * 규칙마다 "왜 문제인지"를 붙인다. 위반 목록만 보여주면 사람은 규칙을 지키는
- * 대신 규칙을 끄기 때문에, 근거가 화면에 함께 나와야 한다.
- * (server/lib/rules.js 의 RULE_REASONS 와 같은 내용을 유지한다)
- */
-const RULE_REASONS = {
-  'branch-name':
-    '이름만으로 무슨 작업인지, 어디로 병합될지 알 수 없습니다. 이 도구를 포함한 자동화가 접두사로 브랜치 종류를 판별하므로, 규칙을 벗어난 브랜치는 feature/release/hotfix 어디에도 잡히지 않고 집계에서 빠집니다.',
-  'commit-message':
-    '릴리즈 노트 자동 생성과 변경 유형(기능/버그/문서) 분류가 커밋 접두사에 의존합니다. 규칙을 벗어난 커밋은 노트에서 누락되거나 엉뚱한 항목으로 분류되고, 나중에 "언제 무엇이 바뀌었나"를 되짚기 어려워집니다.',
-  'stale-branch':
-    '오래 방치될수록 기준 브랜치와 멀어져 병합 시 충돌이 커집니다. 이미 다른 경로로 반영됐는데 지우지 않은 브랜치일 수도 있어, 남아 있으면 어떤 작업이 살아 있는지 판단이 흐려집니다.',
-  protected:
-    'GitHub 브랜치 보호가 걸려 있으면 이 도구의 직접 병합·삭제가 거부될 수 있습니다. 그 브랜치로는 PR 을 거쳐야 합니다.',
-}
-
-const withReason = (v) => ({ ...v, why: RULE_REASONS[v.rule] || '' })
+const withReason = (v) => makeViolation(v)
 const truncate = (s, n = 60) => (s && s.length > n ? `${s.slice(0, n)}…` : s || '')
 
 function classify(name, flow) {

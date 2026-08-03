@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useBackend } from '../../backends/index.jsx'
 import { Badge, relTime } from '../../components/ui.jsx'
+import { useAsyncData } from '../../lib/useAsyncData.js'
 
 const ROW = 30
 const COL = 18
@@ -9,22 +10,12 @@ const COLORS = ['#4c8dff', '#3fb950', '#a371f7', '#d29922', '#db61a2', '#f85149'
 
 export default function GraphTab({ repoId, branches }) {
   const api = useBackend()
-  const [data, setData] = useState(null)
   const [limit, setLimit] = useState(120)
   const [scope, setScope] = useState('')
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-    setData(null)
-    api
-      .graph(repoId, { limit, ...(scope ? { branch: scope } : {}) })
-      .then((d) => !cancelled && setData(d))
-      .catch((e) => !cancelled && setError(e.message))
-    return () => {
-      cancelled = true
-    }
-  }, [repoId, limit, scope])
+  const { data, error } = useAsyncData(
+    () => api.graph(repoId, { limit, ...(scope ? { branch: scope } : {}) }),
+    [repoId, limit, scope],
+  )
 
   if (error) return <div className="card empty err-text">{error}</div>
   if (!data) return <div className="empty">그래프 계산 중…</div>
