@@ -129,6 +129,15 @@ tbody tr:hover { background: #141a24; }
   background: #12171f; border-radius: 0 6px 6px 0; color: var(--muted); font-size: 12.5px; line-height: 1.65;
 }
 
+.guide-list { margin: 0 0 12px; padding-left: 20px; }
+.guide-list li { margin-bottom: 10px; line-height: 1.7; color: var(--text); font-size: 13px; }
+.guide-list strong { color: #fff; }
+
+.guide-flow { display: flex; flex-direction: column; gap: 10px; }
+.guide-row { padding: 10px 12px; background: #12171f; border-radius: 8px; border-left: 2px solid var(--border); }
+.guide-row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.guide-row .sub { line-height: 1.65; }
+
 .empty { color: var(--muted); text-align: center; padding: 36px 12px; font-size: 13px; }
 .muted { color: var(--muted); }
 .err-text { color: var(--red); }

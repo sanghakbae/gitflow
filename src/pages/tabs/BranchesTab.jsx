@@ -40,7 +40,8 @@ export default function BranchesTab({ data, reload, showToast }) {
         {!summary.developExists ? (
           <div className="row">
             <span className="muted">
-              {repo.flow.develop} 브랜치가 없습니다. git-flow 를 사용하려면 먼저 초기화하세요.
+              {repo.flow.develop} 브랜치가 없어 {repo.flow.main} 하나로만 작업 중입니다. 무엇이 달라지는지는{' '}
+              <a href="?tab=guide">가이드</a>에 정리해 두었습니다.
             </span>
             <button className="primary" onClick={() => setDialog({ action: 'init' })}>
               git-flow 초기화
