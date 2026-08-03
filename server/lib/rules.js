@@ -4,7 +4,31 @@ import { classify, listBranches } from './repo.js'
 const SEP = '\x1f'
 const DAY = 24 * 60 * 60 * 1000
 
-const violation = (severity, rule, branch, message, hint) => ({ severity, rule, branch, message, hint })
+/**
+ * 규칙마다 "왜 문제인지"를 붙인다. 위반 목록만 보여주면 사람은 규칙을 지키는
+ * 대신 규칙을 끄기 때문에, 근거가 화면에 함께 나와야 한다.
+ */
+export const RULE_REASONS = {
+  'branch-name':
+    '이름만으로 무슨 작업인지, 어디로 병합될지 알 수 없습니다. 이 도구를 포함한 자동화가 접두사로 브랜치 종류를 판별하므로, 규칙을 벗어난 브랜치는 feature/release/hotfix 어디에도 잡히지 않고 집계에서 빠집니다.',
+  'commit-message':
+    '릴리즈 노트 자동 생성과 변경 유형(기능/버그/문서) 분류가 커밋 접두사에 의존합니다. 규칙을 벗어난 커밋은 노트에서 누락되거나 엉뚱한 항목으로 분류되고, 나중에 "언제 무엇이 바뀌었나"를 되짚기 어려워집니다.',
+  'direct-commit':
+    '보호 브랜치에 직접 커밋하면 리뷰와 CI를 건너뜁니다. 되돌릴 때도 병합 커밋 하나가 아니라 커밋을 골라내야 해서 복구가 느려지고, 배포된 코드가 어떤 리뷰를 거쳤는지 추적할 수 없습니다.',
+  'stale-branch':
+    '오래 방치될수록 기준 브랜치와 멀어져 병합 시 충돌이 커집니다. 이미 다른 경로로 반영됐는데 지우지 않은 브랜치일 수도 있어, 남아 있으면 어떤 작업이 살아 있는지 판단이 흐려집니다.',
+  'gone-upstream':
+    '원격에서 지워진 브랜치가 로컬에 남아 있으면 이미 끝난 작업을 다시 이어가거나, 병합된 브랜치를 미완료로 착각하기 쉽습니다.',
+}
+
+const violation = (severity, rule, branch, message, hint) => ({
+  severity,
+  rule,
+  branch,
+  message,
+  hint,
+  why: RULE_REASONS[rule] || '',
+})
 
 /**
  * 팀 규칙 검사: 브랜치 네이밍 / 커밋 메시지 컨벤션 /

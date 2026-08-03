@@ -25,11 +25,25 @@ const uid = () => {
 const reposCol = () => collection(db, 'users', uid(), 'repos')
 const defaultsDoc = () => doc(db, 'users', uid(), 'settings', 'defaults')
 
+// 백엔드 메서드마다 resolve() 가 등록부를 다시 읽는다. 화면 한 번 그리는 데
+// Firestore 읽기가 수십 번 발생하므로 짧게 캐시하고, 쓰기 때 버린다.
+let registryCache = null
+const REGISTRY_TTL = 15_000
+
+export const invalidateRegistry = () => {
+  registryCache = null
+}
+
 export async function loadRegistry() {
+  if (registryCache && Date.now() - registryCache.at < REGISTRY_TTL) return registryCache.value
+
   const [snap, defaults] = await Promise.all([getDocs(reposCol()), loadDefaults()])
   const repos = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
   repos.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-  return { repos, defaults }
+
+  const value = { repos, defaults }
+  registryCache = { at: Date.now(), value }
+  return value
 }
 
 export async function loadDefaults() {
@@ -43,6 +57,7 @@ export async function loadDefaults() {
 
 export async function saveDefaults(defaults) {
   await setDoc(defaultsDoc(), { flow: defaults.flow, rules: defaults.rules }, { merge: true })
+  invalidateRegistry()
   return defaults
 }
 
@@ -58,10 +73,12 @@ function stripUndefined(obj) {
 export async function saveRepoDoc(entry) {
   const { id, ...rest } = entry
   await setDoc(doc(reposCol(), id), stripUndefined(rest), { merge: true })
+  invalidateRegistry()
   return entry
 }
 
 export async function removeRepoDoc(id) {
   await deleteDoc(doc(reposCol(), id))
+  invalidateRegistry()
   return { ok: true }
 }

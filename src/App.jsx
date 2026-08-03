@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useBackend } from './backends/index.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import RepoDetail from './pages/RepoDetail.jsx'
@@ -9,7 +9,12 @@ export default function App() {
   const api = useBackend()
   const [repos, setRepos] = useState([])
   const [error, setError] = useState(null)
+  const [navOpen, setNavOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // 화면을 이동하면 모바일 서랍을 닫는다
+  useEffect(() => setNavOpen(false), [location.pathname, location.search])
 
   const refresh = useCallback(async () => {
     try {
@@ -29,7 +34,9 @@ export default function App() {
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      {navOpen && <div className="nav-scrim" onClick={() => setNavOpen(false)} />}
+
+      <aside className={`sidebar ${navOpen ? 'open' : ''}`} onClick={() => setNavOpen(false)}>
         <div className="logo">
           Git<span>Flow</span> Manager
         </div>
@@ -79,6 +86,22 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
+      {/* 모바일 하단 탭바 — 엄지가 닿는 위치에 둔다 */}
+      <nav className="bottomnav">
+        <NavLink to="/" end className={({ isActive }) => `bn-item ${isActive && !navOpen ? 'active' : ''}`}>
+          <span className="bn-icon">◧</span>
+          대시보드
+        </NavLink>
+        <button className={`bn-item ${navOpen ? 'active' : ''}`} onClick={() => setNavOpen((v) => !v)}>
+          <span className="bn-icon">⎇</span>
+          저장소{repos.length ? ` ${repos.length}` : ''}
+        </button>
+        <NavLink to="/settings" className={({ isActive }) => `bn-item ${isActive && !navOpen ? 'active' : ''}`}>
+          <span className="bn-icon">⚙</span>
+          설정
+        </NavLink>
+      </nav>
     </div>
   )
 }
