@@ -82,8 +82,8 @@ export default function Settings({ onChanged }) {
                     <strong>{r.name}</strong>
                     <div className="mono-sm">{r.id}</div>
                   </td>
-                  <td className="mono-sm">{r.path || `${r.owner}/${r.repo}`}</td>
-                  <td style={{ width: 200 }} className="mono-sm">
+                  <td className="mono-sm" data-label="위치">{r.path || `${r.owner}/${r.repo}`}</td>
+                  <td style={{ width: 200 }} className="mono-sm" data-label="브랜치">
                     {r.flow?.main || cfg.defaults.flow.main} / {r.flow?.develop || cfg.defaults.flow.develop}
                   </td>
                   <td style={{ width: 150 }}>
