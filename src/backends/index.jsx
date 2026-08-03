@@ -89,6 +89,17 @@ function useSignInAction() {
       await fn()
       // 성공 시 onAuthStateChanged 가 다음 단계를 결정한다
     } catch (e) {
+      // 탭이 백그라운드로 내려가면 Firebase 가 인증 저장소를 못 열고 중단된다.
+      // 탭이 다시 보이는 상태면 한 번은 조용히 재시도한다.
+      if (isHiddenTabError(e) && document.visibilityState === 'visible') {
+        try {
+          await fn()
+          return
+        } catch (retryError) {
+          setError(friendly(retryError))
+          return
+        }
+      }
       setError(friendly(e))
     } finally {
       setBusy(null)
@@ -162,9 +173,18 @@ function ConnectGithub({ user, onConnected }) {
   )
 }
 
+/**
+ * Firebase Auth 는 인증 상태를 IndexedDB 에 두는데, 탭이 백그라운드면
+ * "Database is closing/hidden" 을 던지며 중단된다. 로그인 팝업이 뜬 사이
+ * 원래 탭이 뒤로 밀리면 발생한다.
+ */
+const isHiddenTabError = (e) => /Database is closing|closing\/hidden/i.test(e?.message || '')
+
 /** Firebase 인증 오류를 원인이 드러나는 한국어 문장으로 바꾼다. */
 function friendly(e) {
   const code = e?.code || ''
+  if (isHiddenTabError(e))
+    return '로그인 도중 탭이 백그라운드로 내려가 인증이 중단되었습니다. 이 탭을 앞에 둔 채 팝업만 조작해 다시 시도하세요.'
   if (code === 'auth/unauthorized-domain')
     return `이 도메인(${location.hostname})이 Firebase 승인된 도메인 목록에 없습니다. Firebase 콘솔 → Authentication → Settings → 승인된 도메인에 추가하세요.`
   if (code === 'auth/operation-not-allowed')
