@@ -15,7 +15,7 @@ import {
   tags as ghTags,
 } from './githubClient.js'
 import { layoutLanes } from '../lib/laneLayout.js'
-import { loadRegistry, saveRepoDoc, removeRepoDoc, loadDefaults, saveDefaults } from './registry.js'
+import { loadRegistry, saveRepoDoc, removeRepoDoc, saveDefaults } from './registry.js'
 
 const DAY = 24 * 60 * 60 * 1000
 

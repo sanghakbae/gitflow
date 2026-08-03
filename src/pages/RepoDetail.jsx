@@ -20,7 +20,6 @@ export default function RepoDetail({ onChanged }) {
   const api = useBackend()
   const { id } = useParams()
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') || 'branches'
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -63,6 +62,9 @@ export default function RepoDetail({ onChanged }) {
   if (!data) return <div className="empty">불러오는 중…</div>
 
   const { repo, summary, branches, tags, status, merge } = data
+
+  // develop 이 없는 저장소는 무엇부터 해야 하는지가 먼저다
+  const tab = params.get('tab') || (summary.developExists ? 'branches' : 'guide')
 
   async function abortMerge() {
     try {
