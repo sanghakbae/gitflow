@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useBackend } from '../backends/index.jsx'
 import { Badge, useToast } from '../components/ui.jsx'
+import { useAsyncData } from '../lib/useAsyncData.js'
 import BranchesTab from './tabs/BranchesTab.jsx'
 import GuideTab from './tabs/GuideTab.jsx'
 import GraphTab from './tabs/GraphTab.jsx'
@@ -20,25 +21,9 @@ export default function RepoDetail({ onChanged }) {
   const api = useBackend()
   const { id } = useParams()
   const [params, setParams] = useSearchParams()
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [toast, showToast] = useToast()
-
-  const load = useCallback(async () => {
-    try {
-      setData(await api.repo(id))
-      setError(null)
-    } catch (e) {
-      setError(e.message)
-      setData(null)
-    }
-  }, [id])
-
-  useEffect(() => {
-    setData(null)
-    load()
-  }, [load])
+  const { data, error, reload: load } = useAsyncData(() => api.repo(id), [id])
 
   const reload = useCallback(async () => {
     await load()

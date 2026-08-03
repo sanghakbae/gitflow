@@ -1,21 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useBackend } from '../../backends/index.jsx'
 import { Badge, Modal, relTime } from '../../components/ui.jsx'
+import { useAsyncData } from '../../lib/useAsyncData.js'
 
 export default function PullRequestsTab({ repoId, data, showToast }) {
   const api = useBackend()
   const { repo, branches, summary } = data
   const [state, setState] = useState('open')
-  const [gh, setGh] = useState(null)
-  const [error, setError] = useState(null)
   const [creating, setCreating] = useState(false)
   const [notes, setNotes] = useState(null)
-
-  const load = () => {
-    setGh(null)
-    api.github(repoId, state).then(setGh).catch((e) => setError(e.message))
-  }
-  useEffect(load, [repoId, state]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: gh, error, reload: load } = useAsyncData(() => api.github(repoId, state), [repoId, state])
 
   if (error) return <div className="card empty err-text">{error}</div>
   if (!gh) return <div className="empty">GitHub 조회 중…</div>
