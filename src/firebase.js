@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import {
   GithubAuthProvider,
-  GoogleAuthProvider,
   getAuth,
   linkWithPopup,
   onAuthStateChanged,
@@ -51,12 +50,6 @@ const keepToken = (result) => {
 export async function signInWithGithub() {
   const result = await signInWithPopup(auth, githubProvider())
   return { user: result.user, token: keepToken(result) }
-}
-
-/** Google 로그인은 신원 확인만 한다. 저장소 조작에는 별도로 GitHub 연결이 필요하다. */
-export async function signInWithGoogle() {
-  const result = await signInWithPopup(auth, new GoogleAuthProvider())
-  return { user: result.user }
 }
 
 /**

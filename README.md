@@ -29,8 +29,10 @@ npm run dev
 
 ## GitHub 모드 / 배포
 
-1. Firebase 프로젝트에서 **Authentication → GitHub 공급자**를 켜고, 발급된 콜백 URL 을
-   GitHub OAuth App 에 등록합니다. Authentication → Settings → 승인된 도메인에 `gitflow.sanghak.kr` 추가.
+1. GitHub → Settings → Developer settings → **OAuth Apps → New OAuth App** 을 만들고,
+   Authorization callback URL 에 `https://<project>.firebaseapp.com/__/auth/handler` 를 넣습니다.
+   발급된 Client ID/Secret 으로 Firebase 콘솔 **Authentication → Sign-in method → GitHub** 을 활성화하고,
+   Settings → 승인된 도메인에 `gitflow.sanghak.kr` 을 추가합니다. (필요한 공급자는 GitHub 하나뿐입니다)
 2. Firestore 규칙 배포: `firebase deploy --only firestore:rules`
 3. 저장소 Settings → Secrets and variables → **Actions → Variables** 에 `VITE_FIREBASE_*` 6개 등록
    (`.env.example` 참고). 로컬에서 GitHub 모드를 테스트하려면 같은 값을 `.env` 에 넣습니다.

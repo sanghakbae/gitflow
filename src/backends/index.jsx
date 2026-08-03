@@ -6,7 +6,6 @@ import {
   getStoredToken,
   isFirebaseConfigured,
   signInWithGithub,
-  signInWithGoogle,
   signOutGithub,
   watchAuth,
 } from '../firebase.js'
@@ -40,7 +39,8 @@ export function BackendProvider({ children }) {
       }
       watchAuth((user) => {
         if (cancelled) return
-        // 로그인은 했지만 GitHub 토큰이 없으면(= Google 로 들어왔거나 세션 만료) 연결 단계로 보낸다
+        // Firebase 로그인은 유지되지만 토큰은 세션 스토리지에 있어 탭을 닫으면 사라진다.
+        // 그 경우 재인증으로 토큰만 다시 받도록 연결 단계로 보낸다.
         if (!user) setState({ status: 'signed-out' })
         else if (!getStoredToken()) setState({ status: 'needs-github', user })
         else setState({ status: 'ready', backend: githubBackend, user })
@@ -117,17 +117,10 @@ function SignIn() {
         >
           {busy === 'github' ? '로그인 중…' : 'GitHub 로 로그인'}
         </button>
-        <button
-          onClick={() => run('google', signInWithGoogle)}
-          disabled={!!busy}
-          style={{ width: '100%', padding: '10px', marginTop: 8 }}
-        >
-          {busy === 'google' ? '로그인 중…' : 'Google 로 로그인'}
-        </button>
         {error && <div className="err-text" style={{ marginTop: 12, fontSize: 12.5 }}>{error}</div>}
         <p className="muted" style={{ fontSize: 12, marginBottom: 0, marginTop: 14 }}>
-          저장소 조작에는 GitHub 권한이 필요합니다. Google 로 들어오면 다음 단계에서 GitHub 을 연결합니다.
-          토큰은 브라우저 세션에만 보관됩니다.
+          브랜치·태그 조작을 위해 <code>repo</code> 권한을 요청합니다. 액세스 토큰은 Firestore 에 저장하지 않고
+          브라우저 세션에만 보관됩니다.
         </p>
       </div>
     </div>
