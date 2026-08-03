@@ -6,7 +6,9 @@ import {
   getStoredToken,
   isFirebaseConfigured,
   signInWithGithub,
+  signInWithGoogle,
   signOutGithub,
+  useManualToken,
   watchAuth,
 } from '../firebase.js'
 
@@ -117,45 +119,86 @@ function SignIn() {
         >
           {busy === 'github' ? '로그인 중…' : 'GitHub 로 로그인'}
         </button>
+        <button
+          onClick={() => run('google', signInWithGoogle)}
+          disabled={!!busy}
+          style={{ width: '100%', padding: '10px', marginTop: 8 }}
+        >
+          {busy === 'google' ? '로그인 중…' : 'Google 로 로그인'}
+        </button>
         {error && <div className="err-text" style={{ marginTop: 12, fontSize: 12.5 }}>{error}</div>}
         <p className="muted" style={{ fontSize: 12, marginBottom: 0, marginTop: 14 }}>
-          브랜치·태그 조작을 위해 <code>repo</code> 권한을 요청합니다. 액세스 토큰은 Firestore 에 저장하지 않고
-          브라우저 세션에만 보관됩니다.
+          GitHub 로그인이 막혀 있다면 Google 로 들어와 다음 화면에서 개인 액세스 토큰을 등록하면 됩니다.
+          토큰은 Firestore 에 저장하지 않고 브라우저 세션에만 보관됩니다.
         </p>
       </div>
     </div>
   )
 }
 
+const PAT_URL =
+  'https://github.com/settings/tokens/new?description=GitFlow%20Manager&scopes=repo,read:org'
+
 function ConnectGithub({ user, onConnected }) {
   const { busy, error, run } = useSignInAction()
+  const [token, setToken] = useState('')
 
   return (
     <div className="signin">
-      <div className="card" style={{ maxWidth: 440, textAlign: 'center' }}>
-        <div className="logo" style={{ fontSize: 20, padding: '0 0 6px' }}>
+      <div className="card" style={{ maxWidth: 460 }}>
+        <div className="logo" style={{ fontSize: 20, padding: '0 0 6px', textAlign: 'center' }}>
           Git<span>Flow</span> Manager
         </div>
-        <p className="muted" style={{ marginTop: 0 }}>
+        <p className="muted" style={{ marginTop: 0, textAlign: 'center' }}>
           <strong>{user.displayName || user.email}</strong> 으로 로그인했습니다.
           <br />
-          저장소를 읽고 브랜치를 조작하려면 GitHub 연결이 필요합니다.
+          저장소를 다루려면 GitHub 권한이 필요합니다.
         </p>
+
         <button
           className="primary"
           onClick={() => run('connect', () => connectGithub().then(onConnected))}
           disabled={!!busy}
           style={{ width: '100%', padding: '10px' }}
         >
-          {busy ? '연결 중…' : 'GitHub 연결하기'}
+          {busy === 'connect' ? '연결 중…' : 'GitHub 계정 연결'}
         </button>
-        <button onClick={signOutGithub} disabled={!!busy} style={{ width: '100%', padding: '8px', marginTop: 8 }}>
-          다른 계정으로 로그인
+
+        <div className="or">또는</div>
+
+        <div className="field" style={{ marginBottom: 8 }}>
+          <label>
+            개인 액세스 토큰(PAT) 등록 —{' '}
+            <a href={PAT_URL} target="_blank" rel="noreferrer">
+              토큰 만들기 ↗
+            </a>
+          </label>
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="ghp_… 또는 github_pat_…"
+            autoComplete="off"
+            onKeyDown={(e) => e.key === 'Enter' && token && run('pat', () => useManualToken(token).then(onConnected))}
+          />
+        </div>
+        <button
+          onClick={() => run('pat', () => useManualToken(token).then(onConnected))}
+          disabled={!!busy || !token}
+          style={{ width: '100%', padding: '9px' }}
+        >
+          {busy === 'pat' ? '확인 중…' : '토큰으로 계속하기'}
         </button>
+
         {error && <div className="err-text" style={{ marginTop: 12, fontSize: 12.5 }}>{error}</div>}
-        <p className="muted" style={{ fontSize: 12, marginBottom: 0, marginTop: 14 }}>
-          <code>repo</code> 권한을 요청합니다. 액세스 토큰은 Firestore 에 저장하지 않고 브라우저 세션에만 둡니다.
+
+        <p className="muted" style={{ fontSize: 12, marginTop: 14 }}>
+          필요한 권한은 <code>repo</code> (+조직 저장소를 쓰면 <code>read:org</code>) 입니다.
+          토큰은 Firestore 에 저장하지 않고 이 탭의 세션 스토리지에만 둡니다 — 탭을 닫으면 사라집니다.
         </p>
+        <button onClick={signOutGithub} disabled={!!busy} style={{ width: '100%', padding: '8px' }}>
+          로그아웃
+        </button>
       </div>
     </div>
   )

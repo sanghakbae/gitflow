@@ -39,8 +39,14 @@ npm run dev
 4. `main` 에 push 하면 `.github/workflows/deploy.yml` 이 GitHub Pages 로 배포합니다.
    커스텀 도메인은 `public/CNAME` 에 들어 있습니다.
 
-로그인 시 `repo` 권한을 요청하며, GitHub 액세스 토큰은 **세션 스토리지에만** 보관합니다
-(Firestore 에 저장하지 않음). 탭을 닫으면 사라지고, 만료되면 다시 로그인하면 됩니다.
+### OAuth App 없이 쓰기 (PAT)
+
+위 1번(OAuth App 등록)이 번거롭거나 조직 정책상 막혀 있으면, **Google 로그인 + 개인 액세스 토큰**으로
+같은 기능을 쓸 수 있습니다. Google 로 들어오면 GitHub 연결 화면에서 토큰을 등록할 수 있고,
+등록 전에 `GET /user` 로 유효성을 확인합니다. 필요한 권한은 `repo` (+조직 저장소를 쓰면 `read:org`).
+
+어느 방식이든 GitHub 액세스 토큰은 **세션 스토리지에만** 보관합니다(Firestore 에 저장하지 않음).
+탭을 닫으면 사라지고, 만료되면 다시 등록하면 됩니다.
 
 ## 기능
 
