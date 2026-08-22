@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Component, useEffect, useState } from 'react'
 
 export function Modal({ title, children, onClose, actions, wide }) {
   useEffect(() => {
@@ -61,4 +61,37 @@ export function relTime(iso) {
   const d = Math.round(h / 24)
   if (d < 31) return `${d}일 전`
   return `${Math.round(d / 30)}개월 전`
+}
+
+/**
+ * 한 화면에서 난 예외가 앱 전체를 백지로 만들지 않게 막는다.
+ * (경로가 사라진 저장소를 열었을 때 실제로 백지가 된 적이 있다)
+ */
+export class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidUpdate(prev) {
+    // 다른 화면으로 이동하면 오류 상태를 푼다
+    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null })
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <div className="card banner">
+        <strong className="err-text">이 화면을 그리는 중 오류가 났습니다</strong>
+        <div className="mono-sm" style={{ marginTop: 6 }}>{String(this.state.error?.message || this.state.error)}</div>
+        <p className="muted" style={{ fontSize: 12.5, marginBottom: 0 }}>
+          다른 탭은 그대로 쓸 수 있습니다. 반복되면 새로고침하세요.
+        </p>
+      </div>
+    )
+  }
 }

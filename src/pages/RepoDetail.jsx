@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useBackend } from '../backends/index.jsx'
-import { Badge, useToast } from '../components/ui.jsx'
+import { Badge, ErrorBoundary, useToast } from '../components/ui.jsx'
 import { useAsyncData } from '../lib/useAsyncData.js'
 import BranchesTab from './tabs/BranchesTab.jsx'
 import GuideTab from './tabs/GuideTab.jsx'
@@ -47,6 +47,33 @@ export default function RepoDetail({ onChanged }) {
   if (!data) return <div className="empty">불러오는 중…</div>
 
   const { repo, summary, branches, tags, status, merge } = data
+
+  // 저장소를 읽지 못하면 탭을 그리지 않는다. 예전에는 그대로 진행하다
+  // summary 의 빈 필드를 읽고 화면이 통째로 백지가 됐다.
+  if (!summary.ok) {
+    return (
+      <>
+        <div className="page-head">
+          <div>
+            <h1>{repo.name}</h1>
+            <div className="sub mono">{repo.path}</div>
+          </div>
+        </div>
+        <div className="card banner">
+          <strong className="err-text">저장소를 열 수 없습니다</strong>
+          <div className="sub" style={{ marginTop: 6 }}>{summary.error}</div>
+          <p className="muted" style={{ fontSize: 12.5 }}>
+            폴더를 옮겼거나 지웠다면 설정에서 경로를 다시 등록하세요.
+          </p>
+          <div className="row">
+            <button onClick={reload}>다시 시도</button>
+            <Link className="btn" to="/settings">설정으로 이동</Link>
+          </div>
+        </div>
+        {toast}
+      </>
+    )
+  }
 
   // develop 이 없는 저장소는 무엇부터 해야 하는지가 먼저다
   const tab = params.get('tab') || (summary.developExists ? 'branches' : 'guide')
@@ -111,11 +138,13 @@ export default function RepoDetail({ onChanged }) {
         ))}
       </div>
 
-      {tab === 'guide' && <GuideTab data={data} onGoBranches={() => setParams({ tab: 'branches' })} />}
-      {tab === 'branches' && <BranchesTab data={data} reload={reload} showToast={showToast} />}
-      {tab === 'graph' && <GraphTab repoId={id} branches={branches} />}
-      {tab === 'prs' && <PullRequestsTab repoId={id} data={data} showToast={showToast} />}
-      {tab === 'rules' && <RulesTab repoId={id} />}
+      <ErrorBoundary resetKey={`${id}:${tab}`}>
+        {tab === 'guide' && <GuideTab data={data} onGoBranches={() => setParams({ tab: 'branches' })} />}
+        {tab === 'branches' && <BranchesTab data={data} reload={reload} showToast={showToast} />}
+        {tab === 'graph' && <GraphTab repoId={id} branches={branches} />}
+        {tab === 'prs' && <PullRequestsTab repoId={id} data={data} showToast={showToast} />}
+        {tab === 'rules' && <RulesTab repoId={id} />}
+      </ErrorBoundary>
       {toast}
     </>
   )
