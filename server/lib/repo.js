@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises'
 import { git } from './exec.js'
 
 // for-each-ref 는 %1f 로 0x1F(unit separator) 바이트를 출력한다.
@@ -106,12 +107,42 @@ export function classify(branch, flow) {
   return { type: 'other', name: branch }
 }
 
+/** 조회에 실패했을 때도 화면이 기대하는 필드를 모두 채운 기본 요약 */
+function emptySummary(repo) {
+  return {
+    id: repo.id,
+    name: repo.name,
+    path: repo.path,
+    flow: repo.flow,
+    ok: true,
+    branch: null,
+    dirty: false,
+    dirtyCount: 0,
+    ahead: 0,
+    behind: 0,
+    branchCount: 0,
+    counts: { feature: 0, release: 0, hotfix: 0, support: 0, other: 0 },
+    hasRemote: false,
+    developExists: false,
+    mainExists: false,
+    lastCommit: null,
+  }
+}
+
 /** 대시보드 카드용 요약 */
 export async function summarize(repo) {
   const cwd = repo.path
   const top = await resolveWorktree(cwd)
   if (!top) {
-    return { id: repo.id, name: repo.name, path: repo.path, ok: false, error: 'git 저장소가 아닙니다' }
+    // 실패해도 성공과 같은 키를 채워 돌려준다. 모양이 달라지면 화면이
+    // summary.counts 같은 필드를 읽다가 통째로 터진다.
+    return {
+      ...emptySummary(repo),
+      ok: false,
+      error: (await fs.access(cwd).then(() => true, () => false))
+        ? 'git 저장소가 아닙니다'
+        : '경로를 찾을 수 없습니다',
+    }
   }
 
   const [branch, dirty, branches, remoteOk] = await Promise.all([
