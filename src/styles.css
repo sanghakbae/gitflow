@@ -240,6 +240,9 @@ tbody tr:hover { background: #141a24; }
   .page-head { flex-direction: column; align-items: stretch; gap: 12px; }
   h1 { font-size: 19px; }
   .sub, .page-head .mono { overflow-wrap: anywhere; }
+  /* 정규식 패턴·경로·SHA 처럼 띄어쓰기 없는 긴 문자열이 폭을 밀어낸다.
+     좁은 화면에서는 어디서든 끊어 준다. */
+  td, .mono-sm, .why, .log-line { overflow-wrap: anywhere; }
 
   .cards { grid-template-columns: 1fr; }
   .tabs { overflow-x: auto; scrollbar-width: none; }
