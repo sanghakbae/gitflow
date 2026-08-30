@@ -2,9 +2,22 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
+    <!-- user-scalable=no 는 쓰지 않는다. 확대해서 보는 사람을 막는다. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0e1116" />
     <title>GitFlow Manager</title>
+
+    <!-- 아이콘은 모두 public/favicon.svg 에서 뽑은 산출물이다 (npm run icons) -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS 홈 화면 실행 시 주소창 없이 뜨고, 아이콘 아래 이름을 짧게 쓴다 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="GitFlow" />
+    <meta name="description" content="여러 저장소의 git-flow 라이프사이클을 한곳에서 관리합니다" />
   </head>
   <body>
     <div id="root"></div>

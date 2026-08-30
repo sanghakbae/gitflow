@@ -1,0 +1,12 @@
+{
+  "source": "favicon.svg",
+  "sourceHash": "93cb2df045a98b842bb7199ee887aa4b97e2407f3e30f78d1461f963206e6c5c",
+  "outputs": {
+    "apple-touch-icon.png": "8848823559603a3fdddbed33451ea3f7498e3b187bba6b5a86d1e334fb1c12e5",
+    "favicon-32.png": "77da693539798ba68558585ddda96592ea79cea4b690c9708a299db109f4bcef",
+    "favicon.ico": "0853eef148ec318c985ab66ac525e3ec330b3cbee8cbd32a43d59c994004c9f9",
+    "icon-192.png": "6898f85b9d35172dfade8fbc8942ebfc96ec8af68b082445843ed7009b52f896",
+    "icon-512.png": "1abbadbab7990bb0c44a197f7899600c6fb850a71a009c46d694da29780204d8",
+    "icon-maskable-512.png": "d1f7d598a3e0a642d46b74fc9a2c5cfb232f673d28afa05e12b5186b4818b868"
+  }
+}

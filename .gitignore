@@ -4,3 +4,4 @@ dist/
 gitflow.config.json
 .env
 .env.local
+dev-dist/
