@@ -73,6 +73,17 @@ describe('iOS 입력칸 확대 방지', () => {
     expect(applied, '변수만 있고 입력칸에 적용되지 않았습니다').toBe(true)
   })
 
+  // 정규식 패턴·경로·SHA 처럼 띄어쓰기 없는 긴 문자열이 좁은 화면에서 폭을
+  // 밀어내 가로 스크롤을 만든다. 실제로 규칙 검사 탭이 그렇게 터졌다.
+  it('좁은 화면에서 긴 문자열이 끊기도록 해 둔다', () => {
+    const wrapped = mobileBlocks(CSS).some((b) =>
+      rules(b.body).some(
+        (r) => /(^|[\s,])(td|\.mono-sm|\.why)(\s|,|$)/.test(r.selector) && /overflow-wrap:\s*anywhere/.test(r.decls),
+      ),
+    )
+    expect(wrapped, '긴 토큰이 줄바꿈되지 않으면 가로 스크롤이 생깁니다').toBe(true)
+  })
+
   // 확대 자체를 막으면 확대해서 보는 사람을 막는다. 하한으로만 해결한다.
   it('viewport 에 user-scalable=no / maximum-scale 을 쓰지 않는다', () => {
     const html = fs.readFileSync(
