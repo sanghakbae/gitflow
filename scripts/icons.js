@@ -104,6 +104,9 @@ export async function generateIcons({ write = true } = {}) {
   }
   files['favicon.ico'] = buildIco(icoParts)
 
+  // sourceHash 가 '어느 원본에서 나왔는지' 를 못박는 값이다.
+  // 산출물 해시는 참고용 — 리사이즈·합성 결과는 libvips 빌드에 따라 미세하게
+  // 달라져서, 기기가 다르면 값도 달라진다. 검증 기준으로 쓰지 않는다.
   const lock = {
     source: 'favicon.svg',
     sourceHash: sha256(svg),

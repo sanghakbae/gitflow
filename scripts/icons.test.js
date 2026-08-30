@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -9,13 +10,29 @@ const manifest = readJson(path.join(PUBLIC_DIR, 'manifest.webmanifest'))
 
 describe('아이콘 파이프라인', () => {
   // 원본을 고치고 재생성을 잊으면 홈 화면에 옛 아이콘이 남는다.
-  // 지금 SVG 로 다시 뽑아 산출물과 바이트가 같은지 본다.
-  it('산출물이 현재 favicon.svg 와 일치한다', async () => {
-    const { lock } = await generateIcons({ write: false })
+  //
+  // 산출물 바이트를 비교하지는 않는다. 리사이즈·합성 결과는 libvips 빌드에
+  // 따라 미세하게 달라져서, 아무것도 안 바뀌었는데 다른 기기에서 실패한다.
+  // 잡아야 할 것은 '원본이 바뀌었는데 재생성을 안 했다' 뿐이다.
+  it('잠금 파일이 현재 favicon.svg 에서 나온 것이다', () => {
     const saved = readJson(LOCK)
+    const current = createHash('sha256').update(fs.readFileSync(SOURCE)).digest('hex')
+    expect(current, 'favicon.svg 가 바뀌었습니다 — npm run icons 를 실행하세요').toBe(saved.sourceHash)
+  })
 
-    expect(lock.sourceHash, 'favicon.svg 가 바뀌었습니다 — npm run icons 를 실행하세요').toBe(saved.sourceHash)
-    expect(lock.outputs, '아이콘이 원본과 어긋납니다 — npm run icons 를 실행하세요').toEqual(saved.outputs)
+  it('잠금 파일이 만들어야 할 산출물을 모두 적고 있다', () => {
+    const saved = readJson(LOCK)
+    const expected = [...OUTPUTS.map((o) => o.file), 'favicon.ico'].sort()
+    expect(Object.keys(saved.outputs).sort()).toEqual(expected)
+  })
+
+  it('생성기가 선언한 산출물을 실제로 만들어 낸다', async () => {
+    const { files } = await generateIcons({ write: false })
+    const expected = [...OUTPUTS.map((o) => o.file), 'favicon.ico'].sort()
+    expect(Object.keys(files).sort()).toEqual(expected)
+    for (const [name, buf] of Object.entries(files)) {
+      expect(buf.length, `${name} 이 비어 있음`).toBeGreaterThan(100)
+    }
   })
 
   it('선언한 아이콘이 모두 존재하고 크기가 맞다', async () => {
